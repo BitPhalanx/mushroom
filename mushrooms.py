@@ -335,42 +335,68 @@ def main():
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
+        
+        loopie = True
+        avg_maint = 0
+        hist_array = [] # Next time name hist_list
 
-        for epoch in range(5000):
             batch = random.sample(train_dataset, 25)
+            batch = random.sample(train_dataset, 1000)
             inputs_batch, labels_batch = zip(*batch)
             loss_output, prediction_output, _ = sess.run([loss, predictions, train], feed_dict={inputs: inputs_batch, labels: labels_batch})
-
             # print("Prediction output", prediction_output)
             # print("Labels batch", labels_batch)
-
             # accuracy = np.mean(labels_batch == prediction_output)
-
             # print("train", "loss", loss_output, "accuracy", accuracy)
 
-        # test our trained model with test data
-        batch = random.sample(test_dataset, 100)
-        inputs_batch, labels_batch = zip(*batch)
-        loss_output, prediction_output, _ = sess.run([loss, predictions, train], feed_dict={inputs: inputs_batch, labels: labels_batch})
-        accuracy = np.mean(labels_batch == prediction_output)
+            # Create history of test accuracy
+            test_batch = random.sample(test_dataset, 1000)
+            test_inputs_batch, test_labels_batch = zip(*batch)
+            # To run without training, do not feed sess.run the "train" parameter 
+            test_loss_output, test_prediction_output = sess.run([loss, predictions], feed_dict={inputs: test_inputs_batch, labels: test_labels_batch})
 
-        f = open('output.txt', 'w')
-        print("Prediction output: ", prediction_output)
-        myString = 'Prediction output: ' + np.array_str(prediction_output)
-        f.write(myString)
-        f.write('\n\n')
-        print("Labels batch: ", labels_batch)
-        t = ' '.join(str(v) for v in labels_batch)
-        myString = 'Labels batch:      [' + t[0:73] + '\n ' + t[74:147] + '\n ' + t[148:] + ']\n\n'
-        f.write(myString)
-        print("Loss: ", loss_output)
-        myString = 'Loss: ' + np.array_str(loss_output)
-        f.write(myString + '\n\n')
-        print("Accuracy: ", accuracy)
-        myString = 'Accuracy: ' + np.array_str(accuracy)
-        f.write(myString)
-        # I believe this is also training, how to run without training?
-        f.close
+            # Store current training accuracy to check loop exit conditions
+            accuracy = np.mean(test_labels_batch == test_prediction_output)
+            hist_array_len = 60 # should this be called outside loop in case of slowdown allocation time?
+                                 # length of 100 runs really quickly, but only gives accuracy of 0.98 or 0.99
+                                 # 200 takes a little longer to run, but returns 1.0 accuracy often
+                                 # 300 gives accuracy of 1.0 over 9/10 times
+                                 # Maybe increasing accuracy resolution would help, would require bigger batches
+                                 # batch size increases resolution but also drastically increases learning time
+                                 # (100 is quick, 1000 super slow but achieves 1.0 accuracy seemingly always
+                                 # Using batch size of 1000 and reducing history array to 30 runs quick
+                                 # Accuracy over .998 or occasionally 1.0
+                                 # increase history memory to 40 returns 1.0 consistently and runs quick
+                                 # will occassionally throw a 0.999 to 0.997
+
+            hist_array.append(np.mean(test_labels_batch == test_prediction_output))
+            # test current trained model with test data
+            if avg_maint >= hist_array_len:
+                # FIX THIS
+                hist_array.pop(0)
+                # hist_array[9] = np.mean(test_labels_batch == test_prediction_output)
+                hist_avg = np.mean(hist_array)
+                if hist_avg >= accuracy:
+                    loopie = False
+                    f = open('output.txt', 'w')
+                    print("Mushroom training results:\n\n")
+                    print("Prediction output: ", test_prediction_output)
+                    myString = 'Prediction output: ' + np.array_str(test_prediction_output)
+                    f.write(myString)
+                    f.write('\n\n')
+                    print("Labels batch: ", test_labels_batch)
+                    t = ' '.join(str(v) for v in test_labels_batch)
+                    myString = 'Labels batch:      [' + t[0:73] + '\n ' + t[74:147] + '\n ' + t[148:] + ']\n\n'
+                    f.write(myString)
+                    print("Loss: ", test_loss_output)
+                    myString = 'Loss: ' + np.array_str(test_loss_output)
+                    f.write(myString + '\n\n')
+                    print("Accuracy: ", accuracy)
+                    myString = 'Accuracy: ' + np.array_str(accuracy)
+                    f.write(myString)
+                    f.close
+            else:
+                avg_maint += 1
 
 if __name__ == "__main__":
     main()
