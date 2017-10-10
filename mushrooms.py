@@ -340,7 +340,8 @@ def main():
         avg_maint = 0
         hist_array = [] # Next time name hist_list
 
-            batch = random.sample(train_dataset, 25)
+        while loopie:
+        # for epoch in range(5000):
             batch = random.sample(train_dataset, 1000)
             inputs_batch, labels_batch = zip(*batch)
             loss_output, prediction_output, _ = sess.run([loss, predictions, train], feed_dict={inputs: inputs_batch, labels: labels_batch})
